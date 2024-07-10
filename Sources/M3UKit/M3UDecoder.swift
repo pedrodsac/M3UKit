@@ -21,16 +21,16 @@ public class M3UDecoder {
 				.components(separatedBy: ":")
 				.last!
 			var channelURL: String {
-				if lines[i+1].hasPrefix("http") {
-					return lines[i+1]
-				} else if lines[i+2].hasPrefix("http") {
-					return lines[i+2]
-				} else if lines[i+3].hasPrefix("http") {
-					return lines[i+3]
-				} else if lines[i+4].hasPrefix("http") {
-					return lines[i+4]
-				} else if lines[i+5].hasPrefix("http") {
-					return lines[i+5]
+				if lines.at(i+1)?.hasPrefix("http") ?? false {
+					return lines.at(i+1) ?? ""
+				} else if lines.at(i+2)?.hasPrefix("http") ?? false {
+					return lines.at(i+2) ?? ""
+				} else if lines.at(i+3)?.hasPrefix("http") ?? false {
+					return lines.at(i+3) ?? ""
+				} else if lines.at(i+4)?.hasPrefix("http") ?? false {
+					return lines.at(i+4) ?? ""
+				} else if lines.at(i+5)?.hasPrefix("http") ?? false {
+					return lines.at(i+5) ?? ""
 				} else {
 					return ""
 				}
@@ -61,5 +61,4 @@ public class M3UDecoder {
 		}
 		return attributes
 	}
-	
 }
