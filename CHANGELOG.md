@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Parse `#EXTVLCOPT:` directives and attach them to the media entry that follows, exposed as `Media.vlcOptions`
+- Added `Media.httpUserAgent`, `Media.httpReferrer`, `Media.httpOrigin` and `Media.httpHeaders` accessors
+
 ## 1.0.0 - 2026-05-11
 
 Initial stable release.

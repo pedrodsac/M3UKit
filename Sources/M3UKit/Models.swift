@@ -52,6 +52,10 @@ public struct Media: Codable, Hashable, Sendable {
     public var series: SeriesInfo?
     public var group: String?
     public var hls: MediaHLSMetadata
+    /// Options declared with `#EXTVLCOPT:` lines that precede this entry, such as a pinned user agent,
+    /// referrer, origin, or `network-caching`. Keys are stored as written and values have surrounding
+    /// quotes removed.
+    public var vlcOptions: [String: String]
 
     public init(
         title: String,
@@ -61,7 +65,8 @@ public struct Media: Codable, Hashable, Sendable {
         contentType: MediaContentType = .other,
         series: SeriesInfo? = nil,
         group: String? = nil,
-        hls: MediaHLSMetadata = MediaHLSMetadata()
+        hls: MediaHLSMetadata = MediaHLSMetadata(),
+        vlcOptions: [String: String] = [:]
     ) {
         self.title = title
         self.url = url
@@ -71,6 +76,7 @@ public struct Media: Codable, Hashable, Sendable {
         self.series = series
         self.group = group
         self.hls = hls
+        self.vlcOptions = vlcOptions
     }
 
     public var tvgID: String? { attributes.normalizedValue(for: "tvg-id") }
@@ -87,6 +93,23 @@ public struct Media: Codable, Hashable, Sendable {
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty } ?? []
+    }
+
+    /// The user agent pinned with `#EXTVLCOPT:http-user-agent=...`, if any.
+    public var httpUserAgent: String? { vlcOptions.normalizedValue(for: "http-user-agent") }
+    /// The referrer pinned with `#EXTVLCOPT:http-referrer=...`, if any.
+    public var httpReferrer: String? { vlcOptions.normalizedValue(for: "http-referrer") }
+    /// The origin pinned with `#EXTVLCOPT:http-origin=...`, if any.
+    public var httpOrigin: String? { vlcOptions.normalizedValue(for: "http-origin") }
+
+    /// The pinned user agent, referrer and origin expressed as HTTP request headers, ready to attach to a
+    /// request. Empty when the entry declares none.
+    public var httpHeaders: [String: String] {
+        var headers: [String: String] = [:]
+        if let httpUserAgent { headers["User-Agent"] = httpUserAgent }
+        if let httpReferrer { headers["Referer"] = httpReferrer }
+        if let httpOrigin { headers["Origin"] = httpOrigin }
+        return headers
     }
 
     public func catchUpURL(

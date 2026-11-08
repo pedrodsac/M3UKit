@@ -9,6 +9,7 @@ It focuses on IPTV playlists while preserving enough HLS metadata for media clie
 - Parse extended M3U playlists from `String`, `Data`, or file `URL`
 - Model playlists and media entries with `Codable`, `Hashable`, and `Sendable` types
 - Preserve IPTV attributes such as `tvg-id`, `tvg-name`, `tvg-logo`, `group-title`, `audio-track`, and catch-up fields
+- Preserve per-entry `#EXTVLCOPT:` options such as a pinned user agent, referrer, and origin
 - Preserve HLS metadata such as playlist type, target duration, media sequence, keys, byte ranges, maps, and discontinuities
 - Classify entries as live channels, movies, series, radio, shows, or other media
 - Detect common series episode patterns such as `S01E02`, `1x08`, and `Season 2 Episode 5`
@@ -70,6 +71,29 @@ let url = media.catchUpURL(
 ```
 
 Supported modes are `default`, `append`, `shift`, `flussonic`, and `xtream`.
+
+## VLC Options
+
+Providers often pin request headers on an entry with `#EXTVLCOPT:` lines:
+
+```m3u
+#EXTINF:-1 tvg-id="sic.pt",SIC
+#EXTVLCOPT:http-user-agent="Mozilla/5.0 …"
+#EXTVLCOPT:http-origin=https://sic.pt
+#EXTVLCOPT:http-referrer=https://sic.pt/
+https://sic.live.impresa.pt/sic1080p.m3u8
+```
+
+M3UKit attaches those options to the entry they precede and exposes them both raw and as
+ready-to-use HTTP headers:
+
+```swift
+let media = playlist.media[0]
+
+media.vlcOptions            // ["http-user-agent": "Mozilla/5.0 …", "http-origin": "https://sic.pt", …]
+media.httpUserAgent         // "Mozilla/5.0 …"
+media.httpHeaders           // ["User-Agent": "Mozilla/5.0 …", "Origin": "https://sic.pt", "Referer": "https://sic.pt/"]
+```
 
 ## Requirements
 

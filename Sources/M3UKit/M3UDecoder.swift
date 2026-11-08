@@ -70,6 +70,7 @@ private struct M3UParser {
     private var currentMap: HLSMap?
     private var hasPendingDiscontinuity = false
     private var pendingTags: [PlaylistTag] = []
+    private var pendingVLCOptions: [String: String] = [:]
 
     init(options: M3UDecoder.Options) {
         self.options = options
@@ -143,6 +144,11 @@ private struct M3UParser {
     }
 
     private mutating func parseTag(_ line: String) {
+        if line.hasPrefix("#EXTVLCOPT:") {
+            parseVLCOption(String(line.removingPrefix("#EXTVLCOPT:")))
+            return
+        }
+
         if line.hasPrefix("#EXT-X-PLAYLIST-TYPE:") {
             let value = String(line.removingPrefix("#EXT-X-PLAYLIST-TYPE:")).uppercased()
             playlist.playlistType = HLSPlaylistType(rawValue: value)
@@ -223,6 +229,16 @@ private struct M3UParser {
         return ByteRange(length: length, offset: pieces.right.flatMap(Int.init))
     }
 
+    /// Records one `#EXTVLCOPT:` key/value pair for the media entry that follows. The body arrives without the
+    /// leading `#EXTVLCOPT:`; a missing `=` yields an empty value, and surrounding quotes are stripped.
+    private mutating func parseVLCOption(_ body: String) {
+        let pieces = body.splitOnce(separator: "=")
+        let key = pieces.left.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard key.isEmpty == false else { return }
+        let rawValue = pieces.right?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        pendingVLCOptions[key] = rawValue.unquoted()
+    }
+
     private func buildMedia(from pending: PendingMedia, urlString: String, lineNumber: Int) throws -> Media? {
         guard let url = URL(string: urlString) else {
             if options.skipsInvalidMedia { return nil }
@@ -257,7 +273,8 @@ private struct M3UParser {
             contentType: contentType,
             series: series,
             group: group,
-            hls: hls
+            hls: hls,
+            vlcOptions: pendingVLCOptions
         )
     }
 
@@ -267,6 +284,7 @@ private struct M3UParser {
         currentByteRange = nil
         hasPendingDiscontinuity = false
         pendingTags = []
+        pendingVLCOptions = [:]
     }
 }
 
@@ -463,6 +481,11 @@ private enum MediaClassifier {
 private extension StringProtocol {
     func removingPrefix(_ prefix: String) -> SubSequence {
         hasPrefix(prefix) ? dropFirst(prefix.count) : self[...]
+    }
+
+    func unquoted() -> String {
+        guard count >= 2, first == "\"", last == "\"" else { return String(self) }
+        return String(dropFirst().dropLast())
     }
 
     func splitOnce(separator: Character) -> (left: String, right: String?) {

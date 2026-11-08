@@ -67,6 +67,60 @@ import Testing
     #expect(!playlist.media[1].hls.hasDiscontinuity)
 }
 
+@Test func decodesVLCEDirectivesForFollowingMedia() throws {
+    let text = """
+    #EXTM3U
+    #EXTINF:-1 group-title="TV" tvg-id="SIC.pt" tvg-logo="https://example.com/sic.png",SIC
+    #EXTVLCOPT:http-user-agent="Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0"
+    #EXTVLCOPT:http-origin=https://sic.pt
+    #EXTVLCOPT:http-referrer=https://sic.pt/
+    https://sic.live.impresa.pt/sic1080p.m3u8
+    #EXTINF:-1 tvg-id="rtp1.pt",RTP 1
+    https://example.com/rtp1.m3u8
+    """
+
+    let playlist = try M3UDecoder().decode(text)
+
+    let sic = playlist.media[0]
+    #expect(sic.vlcOptions["http-user-agent"] == "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0")
+    #expect(sic.vlcOptions["http-origin"] == "https://sic.pt")
+    #expect(sic.vlcOptions["http-referrer"] == "https://sic.pt/")
+    #expect(sic.httpUserAgent == "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0")
+    #expect(sic.httpReferrer == "https://sic.pt/")
+    #expect(sic.httpOrigin == "https://sic.pt")
+    #expect(sic.httpHeaders == [
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0",
+        "Referer": "https://sic.pt/",
+        "Origin": "https://sic.pt",
+    ])
+
+    // `#EXTVLCOPT` describes the entry that follows, so the next entry gets none of it.
+    #expect(playlist.media[1].vlcOptions.isEmpty)
+    #expect(playlist.media[1].httpHeaders.isEmpty)
+
+    // The directives belong to the media entry, not to the playlist-level tag list.
+    #expect(playlist.tags.isEmpty)
+}
+
+@Test func decodesVLCEDirectivesWithoutQuotesOrValues() throws {
+    let text = """
+    #EXTM3U
+    #EXTINF:-1,Channel
+    #EXTVLCOPT:network-caching=1000
+    #EXTVLCOPT:no-video-title-show
+    #EXTVLCOPT:http-user-agent='Firefox'
+    https://example.com/live/channel.m3u8
+    """
+
+    let playlist = try M3UDecoder().decode(text)
+    let channel = try #require(playlist.media.first)
+
+    #expect(channel.vlcOptions["network-caching"] == "1000")
+    #expect(channel.vlcOptions["no-video-title-show"] == "")
+    // Only matching double quotes are stripped; single quotes are left as written.
+    #expect(channel.vlcOptions["http-user-agent"] == "'Firefox'")
+}
+
 @Test func buildsCatchUpURLs() throws {
     let text = """
     #EXTM3U catchup="append" catchup-source="?utc={utc}&duration={duration}"
