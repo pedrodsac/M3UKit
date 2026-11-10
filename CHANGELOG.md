@@ -1,11 +1,12 @@
 # Changelog
 
-## Unreleased
+## 2.1.0 - 2026-11-10
 
 - Added the `XtreamKit` library for Xtream Codes and XUI panels
   - `XtreamAccount` reads an account from a panel link or from a typed address, and builds the panel's URLs: `player_api.php`, `get.php`, `xmltv.php`, live, movie and episode streams, and catch-up in both its path and query forms
   - `XtreamClient` is an actor over `player_api.php`: the account, categories, live streams, movies, series, movie and series details, and the guide. At most four requests run at once, server errors are retried, and large lists are downloaded to a file and decoded from a memory-mapped view of it. A list the panel can't deliver whole is fetched category by category
   - The models read what panels really send: numbers as strings, `null`, `""`, `[]` for a missing object, `backdrop_path` as an array or a string, `episodes` keyed by season or as an array of arrays, a list as an object of items, base64 guide text. One malformed item is skipped and counted instead of failing the list
+  - `XtreamClient.vodInfoData(id:)` and `seriesInfoData(id:)` give a detail answer as the panel sent it, after the usual checks, for an app that stores the answer and decodes it again later with `XtreamVODInfo` or `XtreamSeriesInfo`
   - `XtreamError` says why a request gave no data: rejected, expired, disabled, banned, a web page instead of data, an unexpected status
 - Raised the minimum platforms to macOS 13, iOS 16, tvOS 16 and watchOS 9, which the client's async `URLSession` calls need
 
