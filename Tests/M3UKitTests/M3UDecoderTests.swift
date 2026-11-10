@@ -29,7 +29,8 @@ import Testing
     #expect(hbo.duration == -1)
     #expect(hbo.tvgID == "hbo.us")
     #expect(hbo.groupTitle == "Movies")
-    #expect(hbo.contentType == .movie)
+    // The link says it is live, whatever the group is called.
+    #expect(hbo.contentType == .live)
     #expect(hbo.tvgLogo?.absoluteString == "https://example.com/hbo.png")
 
     let episode = playlist.media[1]

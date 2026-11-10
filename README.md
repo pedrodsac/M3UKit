@@ -11,8 +11,9 @@ It focuses on IPTV playlists while preserving enough HLS metadata for media clie
 - Preserve IPTV attributes such as `tvg-id`, `tvg-name`, `tvg-logo`, `group-title`, `audio-track`, and catch-up fields
 - Preserve per-entry `#EXTVLCOPT:` options such as a pinned user agent, referrer, and origin
 - Preserve HLS metadata such as playlist type, target duration, media sequence, keys, byte ranges, maps, and discontinuities
-- Classify entries as live channels, movies, series, radio, shows, or other media
-- Detect common series episode patterns such as `S01E02`, `1x08`, and `Season 2 Episode 5`
+- Classify entries as live channels, movies, series, radio, shows, or other media, trusting the stream link over the group name
+- Read episode titles such as `S01E02`, `S01 E02`, `1x08`, and `Season 2 Episode 5` into show, season, episode, episode name, year, and air date
+- Recognise Xtream Codes and XUI stream links and read their IDs
 - Build catch-up URLs from provider templates
 - Tested with Swift Testing
 
@@ -57,6 +58,36 @@ The package exposes two primary models:
 - `Media`: one playable entry with title, URL, duration, IPTV attributes, inferred content type, series information, and HLS metadata for that item.
 
 Both types conform to `Codable`, `Hashable`, and `Sendable`.
+
+## Classification
+
+`MediaClassifier` decides whether an entry is live, a movie, an episode or radio. The link is the strongest
+evidence, because an IPTV panel writes it, while group names are whatever the provider typed:
+
+1. An explicit `tvg-type`.
+2. The link's shape: a panel's `/live/`, `/movie/` and `/series/` paths, the short live form `/user/pass/123`, and
+   XUI's `/play/{token}` links.
+3. The container extension: a video file is on demand, an audio file is radio.
+4. For on-demand entries, an episode marker in the title or a series word in the group makes an episode; otherwise
+   a movie.
+5. For a link that says nothing, an episode marker, then words in the group, then an `audio-track` attribute.
+   Otherwise live.
+
+Group words match whole words only, so "Vodafone" is not "vod" and "Filmbox" is not "film".
+
+```swift
+let kind = MediaClassifier.classify(title: "Sky Cinema", url: url, attributes: [:], group: "UK | Sky Cinema")
+
+let info = SeriesInfo(title: "Severance S02 E03 - Hello, Ms. Cobel")
+info?.name          // "Severance"
+info?.season        // 2
+info?.episode       // 3
+info?.episodeTitle  // "Hello, Ms. Cobel"
+
+let stream = XtreamStreamURL(url: url)   // kind, streamID, username, password, containerExtension
+media.xtreamStreamID                      // from the link, or an XUI entry's `xui-id`
+playlist.isXUI
+```
 
 ## Catch-Up URLs
 
