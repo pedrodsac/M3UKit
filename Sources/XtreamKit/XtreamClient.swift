@@ -112,6 +112,25 @@ public actor XtreamClient {
         return try Self.decodeObject(XtreamVODInfo.self, from: data, action: "get_vod_info")
     }
 
+    /// `get_vod_info` as the panel sent it, after the checks every answer gets, for an app that keeps the answer and
+    /// reads it again later: a decoder fix then improves what is already stored. Decode it with `XtreamVODInfo`.
+    public func vodInfoData(id: Int) async throws -> Data {
+        let data = try await fetch(
+            account.playerAPIURL(action: "get_vod_info", parameters: [("vod_id", String(id))]),
+            timeout: configuration.requestTimeout
+        )
+        return try Self.checkedBody(data, action: "get_vod_info")
+    }
+
+    /// `get_series_info` as the panel sent it. Decode it with `XtreamSeriesInfo`.
+    public func seriesInfoData(id: Int) async throws -> Data {
+        let data = try await fetch(
+            account.playerAPIURL(action: "get_series_info", parameters: [("series_id", String(id))]),
+            timeout: configuration.requestTimeout
+        )
+        return try Self.checkedBody(data, action: "get_series_info")
+    }
+
     public func seriesInfo(id: Int) async throws -> XtreamSeriesInfo {
         let data = try await fetch(
             account.playerAPIURL(action: "get_series_info", parameters: [("series_id", String(id))]),

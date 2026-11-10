@@ -366,6 +366,31 @@ private func leavesNoDownloadBehind(_ status: Int, _ body: String) async throws 
     #expect(show.episodes.map(\.id) == [5])
 }
 
+@Test func givesDetailsAsThePanelSentThem() async throws {
+    let series = #"{"seasons":[],"info":{"name":"Show"},"episodes":{"1":[{"id":"5","episode_num":"1","title":"Pilot"}]}}"#
+    let movie = #"{"info":{"name":"Dune","plot":"Paul"},"movie_data":{"stream_id":55120,"name":"Dune"}}"#
+    let client = makeClient { url in
+        switch action(of: url) {
+        case "get_series_info": StubResponse(series)
+        case "get_vod_info": StubResponse(movie)
+        default: StubResponse(status: 404, "")
+        }
+    }
+
+    let seriesData = try await client.seriesInfoData(id: 901)
+    #expect(String(decoding: seriesData, as: UTF8.self) == series)
+    #expect(try JSONDecoder().decode(XtreamSeriesInfo.self, from: seriesData).episodes.map(\.id) == [5])
+
+    let movieData = try await client.vodInfoData(id: 55120)
+    #expect(try JSONDecoder().decode(XtreamVODInfo.self, from: movieData).info?.plot == "Paul")
+}
+
+@Test func rawDetailsStillTellRefusalsApart() async {
+    let client = makeClient { _ in StubResponse("false") }
+    await #expect(throws: XtreamError.unsupportedAction("get_series_info")) { try await client.seriesInfoData(id: 1) }
+    await #expect(throws: XtreamError.unsupportedAction("get_vod_info")) { try await client.vodInfoData(id: 1) }
+}
+
 @Test func readsTheGuideInBothShapes() async throws {
     let client = makeClient { url in
         switch action(of: url) {
