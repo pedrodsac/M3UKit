@@ -126,10 +126,36 @@ media.httpUserAgent         // "Mozilla/5.0 …"
 media.httpHeaders           // ["User-Agent": "Mozilla/5.0 …", "Origin": "https://sic.pt", "Referer": "https://sic.pt/"]
 ```
 
+## XtreamKit
+
+`XtreamKit` is a second library in the package for Xtream Codes and XUI panels. It depends on M3UKit and is
+imported separately.
+
+```swift
+import XtreamKit
+
+let account = XtreamAccount(link: "http://panel.example:8080/get.php?username=…&password=…")!
+let client = XtreamClient(account: account)
+
+let info = try await client.accountInfo()
+try info.requireUsable()                       // throws .accountExpired, .accountBanned, .accountRejected …
+
+let categories = try await client.categories(.live)
+let channels = try await client.liveStreams()   // channels.items, channels.droppedCount
+let movie = try await client.vodInfo(id: 55120)
+let show = try await client.seriesInfo(id: 901)
+
+account.liveURL(streamID: 10234, containerExtension: info.preferredLiveExtension)
+account.xmltvURL
+```
+
+Panels send JSON with no reliable types, so every model reads numbers as strings, `null`, `""` and `[]` for a
+missing object, and one item that can't be read is skipped and counted rather than failing the list.
+
 ## Requirements
 
 - Swift 6.3 or newer
-- Apple platforms supported by Swift Package Manager, or server-side Swift environments with Foundation
+- macOS 13, iOS 16, tvOS 16 or watchOS 9, or server-side Swift environments with Foundation
 
 ## License
 
