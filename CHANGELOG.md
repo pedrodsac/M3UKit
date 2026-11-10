@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 2.0.0 - 2026-11-10
 
-Breaking: entries are classified differently, so the same playlist can come out with different `contentType`s. Intended for 2.0.0.
+Breaking: entries are classified differently, so the same playlist can come out with different `contentType`s.
 
 - Classification now trusts the link over the group. A panel's `/live/`, `/movie/` and `/series/` paths, its short live form (`/user/pass/123`) and XUI's `/play/{token}` links decide the kind first, then the container extension, and only then the title and the group. Group names match whole words only, so "Sky Cinema", "Filmbox", "Vodafone" and "Comedy Shows" no longer turn live channels into movies, series or radio, and `music` and `kids` no longer decide anything
 - `MediaClassifier.classify(title:url:attributes:group:isVODPlaylist:)` is public
