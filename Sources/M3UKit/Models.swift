@@ -34,6 +34,14 @@ public struct Playlist: Codable, Hashable, Sendable {
         playlistType == nil && !hasEndList
     }
 
+    /// Whether an XUI panel wrote the playlist, which it marks with `#EXT-X-SESSION-DATA:DATA-ID="com.xui.dev"`.
+    public var isXUI: Bool {
+        tags.contains { tag in
+            guard tag.name == "EXT-X-SESSION-DATA" else { return false }
+            return tag.attributes.normalizedValue(for: "DATA-ID") == "com.xui.dev"
+        }
+    }
+
     public var groups: [String: [Media]] {
         Dictionary(grouping: media) { $0.groupTitle ?? "" }
     }
@@ -87,6 +95,13 @@ public struct Media: Codable, Hashable, Sendable {
     public var tvgType: String? { attributes.normalizedValue(for: "tvg-type") }
     public var tvgEPGID: String? { attributes.normalizedValue(for: "tvg-epgid") }
     public var tvgShift: String? { attributes.normalizedValue(for: "tvg-shift") }
+
+    /// The stream's ID in an Xtream Codes panel: from its link (`/live/user/pass/123.m3u8`), or for XUI's
+    /// tokenised links from the entry's `xui-id` attribute. Nil for a link that isn't a panel's.
+    public var xtreamStreamID: Int? {
+        if let stream = XtreamStreamURL(url: url) { return stream.streamID }
+        return attributes.normalizedValue(for: "xui-id").flatMap { Int($0) }
+    }
     public var groupTitle: String? { group ?? attributes.normalizedValue(for: "group-title") ?? attributes.normalizedValue(for: "group_id") }
     public var audioTracks: [String] {
         attributes.normalizedValue(for: "audio-track")?
@@ -140,11 +155,27 @@ public struct SeriesInfo: Codable, Hashable, Sendable {
     public var name: String
     public var season: Int?
     public var episode: Int?
+    /// The episode's own name, when the title carries one after the season and episode numbers.
+    public var episodeTitle: String?
+    /// The show's year, when the title carries one in brackets before the season and episode numbers.
+    public var year: Int?
+    /// An air date as the title wrote it (`05 05 2025`), for shows listed by date.
+    public var airDate: String?
 
-    public init(name: String, season: Int? = nil, episode: Int? = nil) {
+    public init(
+        name: String,
+        season: Int? = nil,
+        episode: Int? = nil,
+        episodeTitle: String? = nil,
+        year: Int? = nil,
+        airDate: String? = nil
+    ) {
         self.name = name
         self.season = season
         self.episode = episode
+        self.episodeTitle = episodeTitle
+        self.year = year
+        self.airDate = airDate
     }
 }
 

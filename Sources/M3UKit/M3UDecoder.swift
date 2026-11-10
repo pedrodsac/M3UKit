@@ -212,6 +212,12 @@ private struct M3UParser {
             return
         }
 
+        if line.hasPrefix("#EXT-X-SESSION-DATA:") {
+            let value = String(line.removingPrefix("#EXT-X-SESSION-DATA:"))
+            playlist.tags.append(PlaylistTag(name: "EXT-X-SESSION-DATA", value: value, attributes: AttributeParser.parse(value)))
+            return
+        }
+
         if line.hasPrefix("#EXT-X-MEDIA:") {
             let attributes = AttributeParser.parse(line.removingPrefix("#EXT-X-MEDIA:"))
             playlist.tags.append(PlaylistTag(name: "EXT-X-MEDIA", attributes: attributes))
@@ -248,13 +254,13 @@ private struct M3UParser {
         let group = pending.attributes.normalizedValue(for: "group-title")
             ?? pending.attributes.normalizedValue(for: "group_id")
             ?? pendingGroup
-        let series = MediaClassifier.seriesInfo(title: pending.title)
+        let series = SeriesInfo(title: pending.title)
         let contentType = MediaClassifier.classify(
             title: pending.title,
             url: url,
             attributes: pending.attributes,
             group: group,
-            playlist: playlist,
+            isVODPlaylist: playlist.playlistType == .vod || playlist.hasEndList,
             series: series
         )
         let hls = MediaHLSMetadata(
@@ -368,113 +374,6 @@ private enum AttributeParser {
               characters[index] != "," {
             index += 1
         }
-    }
-}
-
-private enum MediaClassifier {
-    static func classify(
-        title: String,
-        url: URL,
-        attributes: [String: String],
-        group: String?,
-        playlist: Playlist,
-        series: SeriesInfo?
-    ) -> MediaContentType {
-        if let explicit = attributes.normalizedValue(for: "tvg-type").flatMap(contentType) {
-            return explicit
-        }
-
-        if let groupType = group.flatMap(groupContentType) {
-            return groupType
-        }
-
-        if series != nil {
-            return .series
-        }
-
-        if let urlType = urlContentType(url) {
-            return urlType
-        }
-
-        if playlist.playlistType == .vod || playlist.hasEndList {
-            return .movie
-        }
-
-        if attributes.normalizedValue(for: "audio-track") != nil || title.localizedCaseInsensitiveContains("radio") {
-            return .radio
-        }
-
-        return .live
-    }
-
-    static func seriesInfo(title: String) -> SeriesInfo? {
-        let patterns = [
-            #"(?i)\bS(\d{1,2})E(\d{1,3})\b"#,
-            #"(?i)\b(\d{1,2})x(\d{1,3})\b"#,
-            #"(?i)\bseason\s+(\d{1,2})\s+episode\s+(\d{1,3})\b"#
-        ]
-
-        for pattern in patterns {
-            guard let regex = try? NSRegularExpression(pattern: pattern),
-                  let match = regex.firstMatch(in: title, range: NSRange(title.startIndex..., in: title)),
-                  match.numberOfRanges >= 3,
-                  let seasonRange = Range(match.range(at: 1), in: title),
-                  let episodeRange = Range(match.range(at: 2), in: title) else {
-                continue
-            }
-
-            let name = seriesName(from: title, removing: match.range)
-            return SeriesInfo(
-                name: name,
-                season: Int(title[seasonRange]),
-                episode: Int(title[episodeRange])
-            )
-        }
-
-        return nil
-    }
-
-    private static func contentType(_ value: String) -> MediaContentType? {
-        switch value.lowercased() {
-        case "live", "channel", "tv": .live
-        case "movie", "vod", "film": .movie
-        case "series", "episode": .series
-        case "radio", "audio": .radio
-        case "show": .show
-        default: nil
-        }
-    }
-
-    private static func groupContentType(_ group: String) -> MediaContentType? {
-        let value = group.lowercased()
-        if value.contains("radio") || value.contains("music") { return .radio }
-        if value.contains("series") || value.contains("episodes") || value.contains("shows") { return .series }
-        if value.contains("movie") || value.contains("film") || value.contains("vod") || value.contains("cinema") { return .movie }
-        if value.contains("live") || value.contains("news") || value.contains("sports") || value.contains("kids") { return .live }
-        return nil
-    }
-
-    private static func urlContentType(_ url: URL) -> MediaContentType? {
-        let value = url.path.lowercased()
-        if value.contains("/series/") { return .series }
-        if value.contains("/movie/") || value.contains("/vod/") { return .movie }
-        if value.contains("/radio/") { return .radio }
-        if value.contains("/live/") { return .live }
-        return nil
-    }
-
-    private static func seriesName(from title: String, removing range: NSRange) -> String {
-        let mutable = NSMutableString(string: title)
-        mutable.replaceCharacters(in: range, with: "")
-        let withoutYear = String(mutable).replacingOccurrences(
-            of: #"\s*[\(\[]\d{4}[\)\]]\s*"#,
-            with: " ",
-            options: .regularExpression
-        )
-        return withoutYear
-            .replacingOccurrences(of: #"[-_.]+"#, with: " ", options: .regularExpression)
-            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
