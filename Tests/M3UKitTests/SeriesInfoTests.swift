@@ -70,3 +70,45 @@ private func ignoresTitlesWithoutAnEpisodeMarker(_ title: String) {
     let info = try JSONDecoder().decode(SeriesInfo.self, from: Data(json.utf8))
     #expect(info == SeriesInfo(name: "Show", season: 1, episode: 2))
 }
+
+private struct DatedTitle: CustomTestStringConvertible, Sendable {
+    var title: String
+    var name: String
+    var airDate: String
+    var year: Int?
+
+    var testDescription: String { title }
+}
+
+private let datedTitles: [DatedTitle] = [
+    DatedTitle(title: "Eixo do Mal - 5/11/2026", name: "Eixo do Mal", airDate: "5/11/2026"),
+    DatedTitle(title: "PCNELID - 30/10/2026", name: "PCNELID", airDate: "30/10/2026"),
+    DatedTitle(title: "Telejornal 2026-11-05", name: "Telejornal", airDate: "2026-11-05"),
+    DatedTitle(title: "Daily Show | 12/25/2026", name: "Daily Show", airDate: "12/25/2026"),
+    DatedTitle(title: "Show 05 05 25", name: "Show", airDate: "05 05 25"),
+    DatedTitle(title: "Show (2019) – 05.11.2026", name: "Show", airDate: "05.11.2026", year: 2019),
+    DatedTitle(title: "The.Show.05.11.2026", name: "The Show", airDate: "05.11.2026"),
+]
+
+@Test(arguments: datedTitles)
+private func parsesDatedTitle(_ expected: DatedTitle) throws {
+    let info = try #require(SeriesTitleParser.parseDated(expected.title))
+    #expect(info == SeriesInfo(name: expected.name, year: expected.year, airDate: expected.airDate))
+    // A date alone doesn't make an episode: the classifier decides when to read one.
+    #expect(SeriesInfo(title: expected.title) == nil)
+}
+
+@Test(arguments: [
+    "5/11/2026",
+    "Show 13/13/2026",
+    "Show 5/11-2026",
+    "Show 1/2/3456",
+    "Show 2026-13-05",
+    "Show 5/11/2026 Extra",
+    "Show115/11/2026",
+    "RTP 1",
+    "Movie 1920x1080",
+])
+private func ignoresTitlesWithoutAnAirDate(_ title: String) {
+    #expect(SeriesTitleParser.parseDated(title) == nil)
+}

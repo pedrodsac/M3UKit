@@ -65,18 +65,28 @@ Both types conform to `Codable`, `Hashable`, and `Sendable`.
 evidence, because an IPTV panel writes it, while group names are whatever the provider typed:
 
 1. An explicit `tvg-type`.
-2. The link's shape: a panel's `/live/`, `/movie/` and `/series/` paths, the short live form `/user/pass/123`, and
+2. `media="true"`, which marks a catch-up programme or a recording rather than a channel. It is never live: the
+   link can still say movie or episode; otherwise an episode marker, a dated title or a series word makes an
+   episode, a video file, a year in brackets or a movie word in the group makes a movie, and anything else is
+   `other`.
+3. The link's shape: a panel's `/live/`, `/movie/` and `/series/` paths, the short live form `/user/pass/123`, and
    XUI's `/play/{token}` links.
-3. The container extension: a video file is on demand, an audio file is radio.
-4. For on-demand entries, an episode marker in the title or a series word in the group makes an episode; otherwise
-   a movie.
-5. For a link that says nothing, an episode marker, then words in the group, then an `audio-track` attribute.
-   Otherwise live.
+4. The container extension: a video file is on demand, an audio file is radio.
+5. For on-demand entries, an episode marker in the title, a title that ends in an air date (`Show - 5/11/2026`), or
+   a series word in the group makes an episode; otherwise a movie.
+6. For a link that says nothing, an episode marker, then words in the group, then an `audio-track` attribute.
+   Otherwise live. A date alone doesn't make an episode here, because live events put dates in their titles too.
 
 Group words match whole words only, so "Vodafone" is not "vod" and "Filmbox" is not "film".
 
 ```swift
 let kind = MediaClassifier.classify(title: "Sky Cinema", url: url, attributes: [:], group: "UK | Sky Cinema")
+
+// The kind and the episode together: a dated title names an episode only once the entry is known to be on demand.
+let result = MediaClassifier.classification(title: "Eixo do Mal - 5/11/2026", url: url, attributes: ["media": "true"], group: nil)
+result.contentType      // .series
+result.series?.name     // "Eixo do Mal"
+result.series?.airDate  // "5/11/2026"
 
 let info = SeriesInfo(title: "Severance S02 E03 - Hello, Ms. Cobel")
 info?.name          // "Severance"

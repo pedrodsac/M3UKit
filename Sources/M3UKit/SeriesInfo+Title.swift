@@ -28,6 +28,11 @@ enum SeriesTitleParser {
         pattern: #"^(\d{1,2}[\s./-]\d{1,2}[\s./-]\d{2,4}|\d{4}[./-]\d{2}[./-]\d{2})$"#
     )
 
+    // Day, month and year with one separator throughout (`5/11/2026`, `05 05 2025`), or year, month and day.
+    private static let datedTitle = try! NSRegularExpression(
+        pattern: #"[\s._,:|–—-]+((\d{1,2})([\s./-])(\d{1,2})\3(\d{4}|\d{2})|(\d{4})([./-])(\d{1,2})\7(\d{1,2}))\s*$"#
+    )
+
     private static let separators = CharacterSet(charactersIn: "-–—:|._,").union(.whitespacesAndNewlines)
 
     static func parse(_ title: String) -> SeriesInfo? {
@@ -49,6 +54,39 @@ enum SeriesTitleParser {
         }
 
         return nil
+    }
+
+    /// Reads a title that names its episode only by the day it aired (`Show - 5/11/2026`, `Show 2026-11-05`), as a
+    /// broadcaster's catch-up list does. A live event's title can end in a date too, so `MediaClassifier` asks this
+    /// only of entries it already knows are on demand.
+    static func parseDated(_ title: String) -> SeriesInfo? {
+        guard title.last(where: { $0.isWhitespace == false })?.isNumber == true else { return nil }
+
+        let nsTitle = title as NSString
+        guard let match = firstMatch(datedTitle, in: title) else { return nil }
+
+        func number(_ group: Int) -> Int? {
+            let range = match.range(at: group)
+            return range.location == NSNotFound ? nil : Int(nsTitle.substring(with: range))
+        }
+
+        let isDate: Bool
+        if let year = number(6), let month = number(8), let day = number(9) {
+            isDate = (1900...2099).contains(year) && (1...12).contains(month) && (1...31).contains(day)
+        } else if let first = number(2), let second = number(4), let year = number(5) {
+            // Day first or month first: either number may be the month, but one of them has to be.
+            let isYear = year < 100 || (1900...2099).contains(year)
+            isDate = isYear && (1...31).contains(first) && (1...31).contains(second) && min(first, second) <= 12
+        } else {
+            isDate = false
+        }
+
+        let before = nsTitle.substring(to: match.range.location)
+        guard isDate, before.contains(where: \.isLetter) else { return nil }
+
+        var info = build(title: title, before: before, after: "", season: nil, episode: nil)
+        info.airDate = nsTitle.substring(with: match.range(at: 1))
+        return info
     }
 
     private static func build(title: String, before: String, after: String, season: Int?, episode: Int?) -> SeriesInfo {
