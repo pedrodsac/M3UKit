@@ -254,14 +254,12 @@ private struct M3UParser {
         let group = pending.attributes.normalizedValue(for: "group-title")
             ?? pending.attributes.normalizedValue(for: "group_id")
             ?? pendingGroup
-        let series = SeriesInfo(title: pending.title)
-        let contentType = MediaClassifier.classify(
+        let classification = MediaClassifier.classification(
             title: pending.title,
             url: url,
             attributes: pending.attributes,
             group: group,
-            isVODPlaylist: playlist.playlistType == .vod || playlist.hasEndList,
-            series: series
+            isVODPlaylist: playlist.playlistType == .vod || playlist.hasEndList
         )
         let hls = MediaHLSMetadata(
             key: currentKey,
@@ -276,8 +274,8 @@ private struct M3UParser {
             url: url,
             duration: pending.duration,
             attributes: pending.attributes,
-            contentType: contentType,
-            series: series,
+            contentType: classification.contentType,
+            series: classification.series,
             group: group,
             hls: hls,
             vlcOptions: pendingVLCOptions

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+Entries can be classified differently: a `media="true"` entry is no longer live, and a dated on-demand title is an episode.
+
+- `media="true"` (Kodi's IPTV Simple convention for catch-up programmes and recordings) marks an entry as on demand, after `tvg-type` and before the link. The link can still say movie or episode; otherwise an episode marker, a dated title or a series word makes an episode, a video file, a year in brackets or a movie word makes a movie, and anything else is `other`
+- An on-demand title that names its episode only by its air date (`Show - 5/11/2026`, `Show 2026-11-05`, `Show 05 05 25`) is an episode of `Show`, with `airDate` set and no season or episode. A link that says nothing still needs more than a date, since live events put dates in their titles
+- `MediaClassifier.classification(title:url:attributes:group:isVODPlaylist:)` returns the kind and the `SeriesInfo` together, as `MediaClassification`. `M3UDecoder` uses it, so `Media.series` names dated episodes
+
 ## 2.1.0 - 2026-11-10
 
 - Added the `XtreamKit` library for Xtream Codes and XUI panels

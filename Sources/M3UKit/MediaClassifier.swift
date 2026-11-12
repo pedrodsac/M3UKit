@@ -6,12 +6,15 @@ import Foundation
 /// provider typed. A channel in a group called "Sky Cinema" is still live when its link says so. In order:
 ///
 /// 1. An explicit `tvg-type`.
-/// 2. The shape of the link: a panel's `/live/`, `/movie/` and `/series/` paths, its short live form
+/// 2. `media="true"`, which marks an entry as on demand rather than a channel. The link can still say movie or
+///    episode; otherwise an episode marker, a dated title or a series word makes an episode, a video file, a year in
+///    brackets or a movie word in the group makes a movie, and anything else is `other`.
+/// 3. The shape of the link: a panel's `/live/`, `/movie/` and `/series/` paths, its short live form
 ///    (`/user/pass/123`), and XUI's `/play/{token}` links.
-/// 3. The container extension: a video file is on demand, an audio file is radio.
-/// 4. For on-demand entries, an episode marker in the title, or a series word in the group, makes it an episode.
-///    Anything else is a movie.
-/// 5. For a link that says nothing (an HLS playlist, a bare stream), an episode marker in the title, then words in
+/// 4. The container extension: a video file is on demand, an audio file is radio.
+/// 5. For on-demand entries, an episode marker in the title, a title that ends in an air date
+///    (`Show - 5/11/2026`), or a series word in the group, makes it an episode. Anything else is a movie.
+/// 6. For a link that says nothing (an HLS playlist, a bare stream), an episode marker in the title, then words in
 ///    the group, then an `audio-track` attribute. Otherwise it is live.
 ///
 /// Group words match whole words only, so "Vodafone" is not "vod" and "Filmbox" is not "film".
@@ -23,18 +26,37 @@ public enum MediaClassifier {
         group: String?,
         isVODPlaylist: Bool = false
     ) -> MediaContentType {
-        classify(
+        classification(title: title, url: url, attributes: attributes, group: group, isVODPlaylist: isVODPlaylist)
+            .contentType
+    }
+
+    /// The entry's kind together with the show and episode its title names. A title that ends in an air date names
+    /// an episode only once the entry is known to be on demand, so ask for both here rather than reading the title
+    /// with `SeriesInfo(title:)` on the side.
+    public static func classification(
+        title: String,
+        url: URL,
+        attributes: [String: String],
+        group: String?,
+        isVODPlaylist: Bool = false
+    ) -> MediaClassification {
+        let series = SeriesInfo(title: title)
+        let contentType = contentType(
             title: title,
             url: url,
             attributes: attributes,
             group: group,
             isVODPlaylist: isVODPlaylist,
-            series: SeriesInfo(title: title)
+            series: series
         )
+        guard contentType == .series, series == nil else {
+            return MediaClassification(contentType: contentType, series: series)
+        }
+
+        return MediaClassification(contentType: contentType, series: SeriesTitleParser.parseDated(title))
     }
 
-    /// For a caller that has already read the title's episode marker.
-    static func classify(
+    private static func contentType(
         title: String,
         url: URL,
         attributes: [String: String],
@@ -48,19 +70,41 @@ public enum MediaClassifier {
 
         let words = group.map(GroupWords.init)
         let parts = URLParts(url)
+        let link = linkKind(parts)
 
-        let isEpisode = series != nil || words?.containsAny(of: seriesWords) == true
-        switch linkKind(parts) {
+        func onDemand(otherwise fallback: MediaContentType) -> MediaContentType {
+            let isEpisode = series != nil
+                || words?.containsAny(of: seriesWords) == true
+                || SeriesTitleParser.parseDated(title) != nil
+            return isEpisode ? .series : fallback
+        }
+
+        // Kodi's IPTV Simple client marks a catch-up programme or a recording this way, next to `radio="true"`.
+        if attributes.normalizedValue(for: "media")?.lowercased() == "true" {
+            switch link {
+            case .movie: return .movie
+            case .series: return .series
+            default: break
+            }
+
+            let isMovie = link == .onDemand
+                || containerKind(of: url, parts) == .video
+                || hasBracketedYear(title)
+                || words?.containsAny(of: onDemandWords) == true
+            return onDemand(otherwise: isMovie ? .movie : .other)
+        }
+
+        switch link {
         case .live: return .live
         case .radio: return .radio
         case .movie: return .movie
         case .series: return .series
-        case .onDemand: return isEpisode ? .series : .movie
+        case .onDemand: return onDemand(otherwise: .movie)
         case nil: break
         }
 
         switch containerKind(of: url, parts) {
-        case .video: return isEpisode ? .series : .movie
+        case .video: return onDemand(otherwise: .movie)
         case .audio: return .radio
         case nil: break
         }

@@ -146,6 +146,19 @@ public enum MediaContentType: String, Codable, Hashable, Sendable {
     case other
 }
 
+/// What `MediaClassifier` makes of an entry.
+public struct MediaClassification: Hashable, Sendable {
+    public var contentType: MediaContentType
+    /// The show and episode the title names: from an episode marker (`S01E02`) whatever the kind, or for an episode
+    /// whose title names it only by its air date (`Show - 5/11/2026`), from that date.
+    public var series: SeriesInfo?
+
+    public init(contentType: MediaContentType, series: SeriesInfo? = nil) {
+        self.contentType = contentType
+        self.series = series
+    }
+}
+
 public enum HLSPlaylistType: String, Codable, Hashable, Sendable {
     case event = "EVENT"
     case vod = "VOD"
