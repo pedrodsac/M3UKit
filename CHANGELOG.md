@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.2.0 - 2026-11-12
 
 Entries can be classified differently: a `media="true"` entry is no longer live, and a dated on-demand title is an episode.
 
